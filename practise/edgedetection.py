@@ -1,7 +1,7 @@
 #edge detection module
 import cv2
 import numpy as np
-
+import cvwindow
 
 vid = cv2.VideoCapture(0)
 
