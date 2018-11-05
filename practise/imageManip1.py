@@ -37,7 +37,7 @@ _, threshImage2 = cv2.threshold(grayScale, 100, 255, cv2.THRESH_OTSU + cv2.THRES
 #dilation
 kernel = np.ones((5, 25))
 opening = cv2.morphologyEx(threshImage2, cv2.MORPH_OPEN, kernel)
-#cv2.imshow('dilation', opening)
+cv2.imshow('dilation', opening)
 
 
 #find contours
@@ -118,7 +118,7 @@ for b in contours:
         xMax = img.shape[1]
     if (yMax > img.shape[0]):
         yMax = img.shape[0]
-    #cv2.drawContours(img, [np.int0(box1)], 0, (0, 255, 0), 1)
+    cv2.drawContours(img, [np.int0(box1)], 0, (0, 255, 0), 1)
     #mask all except current box
     mask = np.zeros((img.shape[0], img.shape[1]))
     cv2.fillConvexPoly(mask, np.array(box1, 'int32'), 255)
