@@ -2,20 +2,12 @@
 
 import cv2
 import numpy as np
-
-'''
-img = cv2.imread('receipt2.jpg')
-shape = img.shape
-img = cv2.resize(img, (int(shape[1]/6), int(shape[0]/6)))
-grayScale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-_, threshImage = cv2.threshold(grayScale, 100, 255, cv2.THRESH_OTSU + cv2.THRESH_BINARY)
-kernel = np.ones((1, 25))
-opening = cv2.morphologyEx(threshImage, cv2.MORPH_OPEN, kernel)
-cv2.imshow('threshold Image Binary', opening)
-'''
+import matplotlib.pyplot as plt
 
 MAX_WIDTH = 500
 HORIZONTAL_MORPH_KERNEL = (1, 25)
+MAX_NUMBER_SIZE = 70
+MIN_NUMBER_SIZE = 10
 
 def extractNumbersColumn(receiptFile):
     #read image and resize
@@ -34,7 +26,7 @@ def extractNumbersColumn(receiptFile):
 
     #contour using rotated rectangles
     _, contours, _ = cv2.findContours(processedImage, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-    boxes = [cv2.boxPoints(cv2.minAreaRect(c)) for c in contours]
+    boxes = np.array([cv2.boxPoints(cv2.minAreaRect(c)) for c in contours])
 
     #find minXPositions of all rectangles
     minXPositions = [min(box[i][0] for i in range(0, 4)) for box in boxes]
@@ -50,11 +42,25 @@ def extractNumbersColumn(receiptFile):
 
     #extract x min and x max locations
     xMin = int(bins[rightPeakIdx])
-    resizedImage = img[:, xMin:, :]
-            
+    print(xMin)
+    reducedBoxes = []
+    for box in boxes:
+        if len(np.where(box[:, 0] > xMin)[0]) == 4:
+            reducedBoxes.append(box)
+
+    #obtain heights of all boxes
+    finalBoxes = []
+    for box in reducedBoxes:
+        w = np.sqrt((box[0][0] - box[1][0])**2 + (box[0][1] - box[1][1])**2)
+        h = np.sqrt((box[1][0] - box[2][0])**2 + (box[1][1] - box[2][1])**2)
+        print(w, h)
+        if (MIN_NUMBER_SIZE < w < MAX_NUMBER_SIZE and MIN_NUMBER_SIZE < h < MAX_NUMBER_SIZE):
+            finalBoxes.append(box)
+            cv2.drawContours(img, [np.int0(box)], 0, (0, 255, 0), 1)
     
-    cv2.imshow('trial', resizedImage)
+    
+    cv2.imshow('trial', img)
     
 
 
-extractNumbersColumn('receipt1.jpg')
+extractNumbersColumn('receipt2.jpg')
