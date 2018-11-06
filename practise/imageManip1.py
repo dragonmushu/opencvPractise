@@ -8,10 +8,10 @@ from PIL import Image
 import os
 
 pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files (x86)/Tesseract-OCR/tesseract'
-img = cv2.imread('receipt6.jpg')
+img = cv2.imread('receipt1.jpg')
 shape = img.shape
 img = img[:, int(shape[1]/2):, :]
-img = cv2.resize(img, (int(shape[0]/2), int(shape[1])))
+img = cv2.resize(img, (int(shape[1]/8), int(shape[0]/4)))
 
 
 grayScale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -35,7 +35,7 @@ _, threshImage2 = cv2.threshold(grayScale, 100, 255, cv2.THRESH_OTSU + cv2.THRES
 
 
 #dilation
-kernel = np.ones((5, 25))
+kernel = np.ones((1, 25))
 opening = cv2.morphologyEx(threshImage2, cv2.MORPH_OPEN, kernel)
 cv2.imshow('dilation', opening)
 
@@ -83,6 +83,7 @@ print('Text:', text)
 '''
 
 allValues = []
+allText = []
 for b in contours:
     #obtain rectangle and confining box
     rect = cv2.minAreaRect(b)
@@ -98,8 +99,8 @@ for b in contours:
     
 
     #expand box size to include edges
-    d1 = np.array([0.2*(box[0][0] - box[1][0]), 0.2*(box[0][1] - box[1][1])])
-    d2 = np.array([0.2*(box[1][0] - box[2][0]), 0.2*(box[1][1] - box[2][1])])
+    d1 = np.array([0.1*(box[0][0] - box[1][0]), 0.1*(box[0][1] - box[1][1])])
+    d2 = np.array([0.1*(box[1][0] - box[2][0]), 0.1*(box[1][1] - box[2][1])])
     box1 = box.copy()
     box1[0] += (d1 + d2)
     box1[1] += (-1*d1 + d2)
@@ -139,6 +140,7 @@ for b in contours:
     text = text.replace('-', '.')
     if len(text) > 0 and text[0] == '.':
         text = '-'+text[1:]
+    allText.append(text)
     if (all([c.isdigit() or c=='.' or c == '-' for c in text])):
         try:
             allValues.append(float(text.strip('""')))
@@ -146,6 +148,7 @@ for b in contours:
             pass     
     os.remove('temp.jpg')
 print(allValues)
+print(allText)
 
 #cv2.drawContours(img, boxes, 0, (0, 0, 255), 3)
 
