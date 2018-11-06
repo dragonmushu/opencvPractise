@@ -3,11 +3,18 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import pytesseract
+from PIL import Image
+import os
+
+pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files (x86)/Tesseract-OCR/tesseract'
 
 MAX_WIDTH = 500
 HORIZONTAL_MORPH_KERNEL = (1, 25)
 MAX_NUMBER_SIZE = 70
 MIN_NUMBER_SIZE = 10
+EXPANDED_WIDTH = 200
+EROSION_KERNEL = (3, 3)
 
 def extractNumbersColumn(receiptFile):
     #read image and resize
@@ -42,25 +49,53 @@ def extractNumbersColumn(receiptFile):
 
     #extract x min and x max locations
     xMin = int(bins[rightPeakIdx])
-    print(xMin)
     reducedBoxes = []
+
+    #filter also looking at min and max dimensions
     for box in boxes:
         if len(np.where(box[:, 0] > xMin)[0]) == 4:
-            reducedBoxes.append(box)
+            w = np.sqrt((box[0][0] - box[1][0])**2 + (box[0][1] - box[1][1])**2)
+            h = np.sqrt((box[1][0] - box[2][0])**2 + (box[1][1] - box[2][1])**2)
+            if (MIN_NUMBER_SIZE < w < MAX_NUMBER_SIZE and MIN_NUMBER_SIZE < h < MAX_NUMBER_SIZE):
+                reducedBoxes.append(box)
+                cv2.drawContours(img, [np.int0(box)], 0, (0, 255, 0), 1)
 
-    #obtain heights of all boxes
-    finalBoxes = []
-    for box in reducedBoxes:
-        w = np.sqrt((box[0][0] - box[1][0])**2 + (box[0][1] - box[1][1])**2)
-        h = np.sqrt((box[1][0] - box[2][0])**2 + (box[1][1] - box[2][1])**2)
-        print(w, h)
-        if (MIN_NUMBER_SIZE < w < MAX_NUMBER_SIZE and MIN_NUMBER_SIZE < h < MAX_NUMBER_SIZE):
-            finalBoxes.append(box)
-            cv2.drawContours(img, [np.int0(box)], 0, (0, 255, 0), 1)
-    
-    
-    cv2.imshow('trial', img)
+    #return the image and the bounding boxes
+    return (img, threshImage, reducedBoxes)
     
 
 
-extractNumbersColumn('receipt2.jpg')
+def extractFloatingPoint(img, boundingBoxes):
+
+    #create mask (inverted) such that it includes text and white space around
+    #borders on pytesseract can cause noise
+    box = boundingBoxes[5]
+    mask = np.zeros((img.shape[0], img.shape[1]))
+    cv2.fillConvexPoly(mask, np.array(box, 'int32'), 255)
+    mask = np.array(mask, dtype='uint8')
+    mask= cv2.bitwise_not(mask)
+    isolatedText = cv2.bitwise_or(threshImage, mask)
+    #section of image
+    #find min y, max y, min x, max x
+    xMax = int(max([box[i][0] for i in range(0, 4)]))
+    yMax = int(max([box[i][1] for i in range(0, 4)]))
+    xMin = int(min([box[i][0] for i in range(0, 4)]))
+    yMin = int(min([box[i][1] for i in range(0, 4)]))
+    isolatedText = isolatedText[yMin:yMax, xMin:xMax]
+    #expand image
+    shape = isolatedText.shape
+    scaleFactor = shape[1]/EXPANDED_WIDTH
+    resizedText = cv2.resize(isolatedText, (int(shape[1]/scaleFactor), int(shape[0]/scaleFactor)))
+    #erode image to decrease holes
+    kernel = np.ones(EROSION_KERNEL)
+    textFilled = cv2.erode(resizedText, kernel)
+    #put image through tesseract and extract text
+    cv2.imwrite('temp.jpg', textFilled)
+    text = pytesseract.image_to_string(Image.open('temp.jpg'), config="--psm 13").strip()
+    print(text)
+    cv2.imshow('mask', textFilled)
+
+
+
+img, threshImage, boxes = extractNumbersColumn('receipt6.jpg')
+extractFloatingPoint(threshImage, boxes)
